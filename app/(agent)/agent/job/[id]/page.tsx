@@ -69,7 +69,7 @@ export default function AgentJobPage() {
     }
   }
 
-  function navigateTo(lat?: number, lng?: number, label?: string) {
+  function navigateTo(lat?: number, lng?: number) {
     if (!lat || !lng) {
       toast.error("Location not available");
       return;
@@ -162,7 +162,7 @@ export default function AgentJobPage() {
         <p className="text-xs text-muted mb-2">Actions</p>
         <div className="grid grid-cols-2 gap-3">
           <button
-            onClick={() => navigateTo(delivery.order?.shop?.lat, delivery.order?.shop?.lng, "Shop")}
+            onClick={() => navigateTo(delivery.order?.shop?.lat, delivery.order?.shop?.lng)}
             className="card p-4 flex flex-col items-center gap-2 hover:border-amber transition-colors"
           >
             <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
@@ -172,7 +172,7 @@ export default function AgentJobPage() {
             <span className="text-xs font-medium">Navigate to shop</span>
           </button>
           <button
-            onClick={() => navigateTo(address?.lat, address?.lng, "Customer")}
+            onClick={() => navigateTo(address?.lat, address?.lng)}
             className="card p-4 flex flex-col items-center gap-2 hover:border-amber transition-colors"
           >
             <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">

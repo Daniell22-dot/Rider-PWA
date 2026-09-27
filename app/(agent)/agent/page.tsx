@@ -7,18 +7,20 @@ import { toast } from "sonner";
 import { Delivery } from "@/types/interface";
 import MessageAdminButton from "@/components/MessageAdminButton";
 
-type AgentStatus = "available" | "busy" | "offline";
+type AgentStatus = "active" | "busy" | "inactive";
 
 const STATUS_LABELS: Record<AgentStatus, string> = {
-  available: "Available",
+  active: "Available",
   busy: "Busy",
-  offline: "Offline",
+  inactive: "Offline",
 };
 
 export default function AgentHomePage() {
-  const [status, setStatus] = useState<AgentStatus>("available");
+  const [status, setStatus] = useState<AgentStatus>("active");
   const [loading, setLoading] = useState(false);
-  const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationDenied, setLocationDenied] = useState(false);
+  const geolocationUnsupported =
+    typeof navigator !== "undefined" && !navigator.geolocation;
 
   const { data: deliveries = [] } = useQuery({
     queryKey: ["agent-deliveries"],
@@ -27,10 +29,7 @@ export default function AgentHomePage() {
   });
 
   useEffect(() => {
-    if (!navigator.geolocation) {
-      setLocationError("Geolocation not supported");
-      return;
-    }
+    if (!navigator.geolocation) return;
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
         fetch("/api/agent/location", {
@@ -39,7 +38,7 @@ export default function AgentHomePage() {
           body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
         }).catch(() => {});
       },
-      () => setLocationError("Location permission denied"),
+      () => setLocationDenied(true),
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
     );
     return () => navigator.geolocation.clearWatch(watchId);
@@ -64,15 +63,15 @@ export default function AgentHomePage() {
   async function toggleStatus() {
     setLoading(true);
     try {
-      const newStatus = status === "available" ? "offline" : "available";
-      const res = await fetch("/api/agent/auth", {
-        method: "POST",
+      const newStatus: AgentStatus = status === "active" ? "inactive" : "active";
+      const res = await fetch("/api/agent/auth/status", {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "status", status: newStatus }),
+        body: JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) throw new Error();
       setStatus(newStatus);
-      toast.success(newStatus === "available" ? "You're now available" : "You're now offline");
+      toast.success(newStatus === "active" ? "You're now available" : "You're now offline");
     } catch {
       toast.error("Could not update status");
     } finally {
@@ -88,18 +87,23 @@ export default function AgentHomePage() {
           <p className="text-sm text-muted">
             {next ? "You have active deliveries" : "No active deliveries"}
           </p>
-          {locationError && <p className="text-xs text-danger mt-1">{locationError}</p>}
+          {geolocationUnsupported && (
+            <p className="text-xs text-danger mt-1">Geolocation not supported on this device</p>
+          )}
+          {locationDenied && (
+            <p className="text-xs text-danger mt-1">Location permission denied</p>
+          )}
         </div>
         <button
           onClick={toggleStatus}
           disabled={loading}
           className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium border transition-colors disabled:opacity-50 ${
-            status === "available"
+            status === "active"
               ? "border-success text-success bg-success/10"
               : "border-border text-muted bg-surface"
           }`}
         >
-          <span className={`w-2 h-2 rounded-full ${status === "available" ? "bg-success" : "bg-muted"}`} />
+          <span className={`w-2 h-2 rounded-full ${status === "active" ? "bg-success" : "bg-muted"}`} />
           {STATUS_LABELS[status]}
         </button>
         <MessageAdminButton />

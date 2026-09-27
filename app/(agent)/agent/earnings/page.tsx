@@ -5,8 +5,8 @@ import { formatKES } from "@/lib/utils";
 
 export default function AgentEarningsPage() {
   const { data: agent, isLoading } = useQuery({
-    queryKey: ["agent-profile"],
-    queryFn: () => fetch("/api/agent/auth").then((r) => r.json()).then((d) => d.agent),
+    queryKey: ["agent-earnings"],
+    queryFn: () => fetch("/api/agent/earnings").then((r) => r.json()),
     refetchInterval: 30000,
   });
 

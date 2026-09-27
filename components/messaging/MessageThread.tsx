@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Message } from "@/types/interface";
 
@@ -14,9 +14,8 @@ function toRole(sender_type: string): Role {
   return sender_type as Role;
 }
 
-export default function MessageThread({ deliveryId, orderId }: { deliveryId: string; orderId: string }) {
+export default function MessageThread({ orderId }: { deliveryId: string; orderId: string }) {
   const [text, setText] = useState("");
-  const [conversationId, setConversationId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const conversationsQuery = useQuery({
@@ -28,11 +27,8 @@ export default function MessageThread({ deliveryId, orderId }: { deliveryId: str
     },
   });
 
-  useEffect(() => {
-    if (!conversationsQuery.data) return;
-    const found = conversationsQuery.data.find((c) => c.order_id === orderId);
-    if (found) setConversationId(found.id);
-  }, [conversationsQuery.data, orderId]);
+  const conversationId =
+    conversationsQuery.data?.find((c) => c.order_id === orderId)?.id ?? null;
 
   const messagesQuery = useQuery({
     queryKey: ["messages", conversationId],

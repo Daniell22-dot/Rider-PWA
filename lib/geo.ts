@@ -17,15 +17,3 @@ export const MARKER_ICON = (size = 28) => ({
   iconSize: [size, size * 1.4] as [number, number],
   iconAnchor: [size / 2, size * 1.4] as [number, number],
 });
-
-export async function reverseGeocode(lat: number, lng: number) {
-  const res = await fetch(`/api/geography/reverse-geocode?lat=${lat}&lng=${lng}`);
-  if (!res.ok) return null;
-  return (await res.json()) as import("@/types/interface").ReverseGeocodeResult;
-}
-
-export async function searchGeo(q: string) {
-  const res = await fetch(`/api/geography/search?q=${encodeURIComponent(q)}`);
-  if (!res.ok) return [];
-  return (await res.json()) as import("@/types/interface").GeoSearchResult[];
-}

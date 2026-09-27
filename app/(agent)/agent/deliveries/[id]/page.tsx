@@ -73,7 +73,7 @@ export default function AgentDeliveryDetailPage({ params }: { params: Promise<{ 
   const submitReport = useMutation({
     mutationFn: async () => {
       const { deliveryId } = await params;
-      const res = await fetch(`/api/agent/deliveries/${deliveryId}/issue`, {
+      const res = await fetch(`/api/agent/deliveries/${deliveryId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason: reportReason, notes: reportText }),

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, DM_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import QueryProvider from "@/lib/query-provider";
+import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${fraunces.variable} ${dmSans.variable}`}>
       <body className="min-h-screen flex flex-col antialiased">
         <QueryProvider>{children}</QueryProvider>
+        <ServiceWorkerRegistrar />
         <Toaster
           position="bottom-right"
           toastOptions={{

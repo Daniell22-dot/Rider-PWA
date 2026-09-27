@@ -6,11 +6,15 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Ekshop Rider",
     description: "Delivery agent portal for Ekshop.",
     start_url: "/agent",
+    scope: "/",
     display: "standalone",
-    background_color: "#ffffff",
+    orientation: "portrait",
+    background_color: "#F4F4F4",
     theme_color: "#0E3D2B",
     icons: [
-      { src: "/logo.webp", sizes: "any", type: "image/webp" },
+      { src: "/icon-192x192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icon-512x512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icon-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }
