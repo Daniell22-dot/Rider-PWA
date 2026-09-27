@@ -70,11 +70,3 @@ export function decodeHtml(str: string): string {
         return HTML_NAMED_ENTITIES[entity] ?? match;
     });
 }
-
-const LEGACY_BASE = "https://ekshop.store";
-
-export function resolveImageUrl(src?: string | null): string {
-    if (!src) return "";
-    if (src.startsWith("http://") || src.startsWith("https://")) return src;
-    return `${LEGACY_BASE}${src}`;
-}

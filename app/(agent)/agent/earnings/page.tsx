@@ -4,9 +4,17 @@ import { useQuery } from "@tanstack/react-query";
 import { formatKES } from "@/lib/utils";
 
 export default function AgentEarningsPage() {
-  const { data: agent, isLoading } = useQuery({
+  const { data: earnings, isLoading, isError } = useQuery({
     queryKey: ["agent-earnings"],
-    queryFn: () => fetch("/api/agent/earnings").then((r) => r.json()),
+    queryFn: async () => {
+      const res = await fetch("/api/agent/earnings", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to load earnings");
+      return (await res.json()) as {
+        total_deliveries: number;
+        weekly_earnings: string;
+        monthly_earnings: string;
+      };
+    },
     refetchInterval: 30000,
   });
 
@@ -18,10 +26,10 @@ export default function AgentEarningsPage() {
     );
   }
 
-  if (!agent) {
+  if (isError || !earnings) {
     return (
       <div className="card flex flex-col items-center justify-center py-20 text-center">
-        <p className="font-bold mb-1">Could not load profile</p>
+        <p className="font-bold mb-1">Could not load earnings</p>
         <p className="text-sm text-muted">Please try signing in again.</p>
       </div>
     );
@@ -35,21 +43,17 @@ export default function AgentEarningsPage() {
       <div className="space-y-3">
         <div className="card p-5">
           <p className="text-xs text-muted mb-1">Total deliveries</p>
-          <p className="text-3xl font-bold">{agent.total_deliveries ?? 0}</p>
+          <p className="text-3xl font-bold">{earnings.total_deliveries ?? 0}</p>
         </div>
 
         <div className="card p-5">
           <p className="text-xs text-muted mb-1">This week</p>
-          <p className="text-3xl font-bold">
-            {formatKES((agent.weekly_earnings ?? 0).toString())}
-          </p>
+          <p className="text-3xl font-bold">{formatKES(earnings.weekly_earnings ?? 0)}</p>
         </div>
 
         <div className="card p-5">
           <p className="text-xs text-muted mb-1">This month</p>
-          <p className="text-3xl font-bold">
-            {formatKES((agent.monthly_earnings ?? 0).toString())}
-          </p>
+          <p className="text-3xl font-bold">{formatKES(earnings.monthly_earnings ?? 0)}</p>
         </div>
       </div>
     </div>

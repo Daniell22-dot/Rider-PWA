@@ -24,7 +24,11 @@ export default function AgentHomePage() {
 
   const { data: deliveries = [] } = useQuery({
     queryKey: ["agent-deliveries"],
-    queryFn: () => fetch("/api/agent/deliveries").then((r) => r.json()) as Promise<Delivery[]>,
+    queryFn: async () => {
+      const res = await fetch("/api/agent/deliveries", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to load deliveries");
+      return (await res.json()) as Delivery[];
+    },
     refetchInterval: 20000,
   });
 
