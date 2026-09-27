@@ -14,7 +14,15 @@ function toRole(sender_type: string): Role {
   return sender_type as Role;
 }
 
-export default function MessageThread({ orderId }: { deliveryId: string; orderId: string }) {
+export default function MessageThread({
+  deliveryId,
+  orderId,
+  conversationId: explicitConversationId,
+}: {
+  deliveryId?: string;
+  orderId?: string;
+  conversationId?: string;
+}) {
   const [text, setText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -23,12 +31,15 @@ export default function MessageThread({ orderId }: { deliveryId: string; orderId
     queryFn: async () => {
       const res = await fetch("/api/conversations");
       if (!res.ok) throw new Error();
-      return res.json() as Promise<{ id: string; order_id: string }[]>;
+      return res.json() as Promise<{ id: string; order_id: string | null }[]>;
     },
+    enabled: !explicitConversationId && Boolean(orderId),
   });
 
   const conversationId =
-    conversationsQuery.data?.find((c) => c.order_id === orderId)?.id ?? null;
+    explicitConversationId ??
+    conversationsQuery.data?.find((c) => c.order_id === orderId)?.id ??
+    null;
 
   const messagesQuery = useQuery({
     queryKey: ["messages", conversationId],
@@ -64,6 +75,11 @@ export default function MessageThread({ orderId }: { deliveryId: string; orderId
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messagesQuery.data]);
 
+  useEffect(() => {
+    if (!conversationId) return;
+    fetch(`/api/conversations/${conversationId}/read`, { method: "PATCH" }).catch(() => {});
+  }, [conversationId]);
+
   if (conversationsQuery.isLoading) {
     return <p className="text-xs text-muted">Loading chat…</p>;
   }
@@ -71,7 +87,6 @@ export default function MessageThread({ orderId }: { deliveryId: string; orderId
   if (!conversationId) {
     return <p className="text-xs text-muted">No conversation for this order yet.</p>;
   }
-
   const messages = messagesQuery.data ?? [];
 
   return (

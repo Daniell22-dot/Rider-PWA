@@ -39,7 +39,7 @@ export default function MessageAdminButton() {
         toast.error(data.detail ?? "Could not start conversation");
         return;
       }
-      router.push(`/messages/${data.id}`);
+      router.push(`/agent/messages/${data.id}`);
     } finally {
       setLoading(false);
     }
