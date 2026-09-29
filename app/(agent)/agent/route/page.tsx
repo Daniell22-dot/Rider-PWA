@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Delivery } from "@/types/interface";
+import { agentFetchJson } from "@/lib/agent-client";
 
 interface RouteStop {
   delivery_id: string;
@@ -25,11 +26,7 @@ interface RouteOptimizationResponse {
 export default function AgentRoutePage() {
   const { data: deliveries = [], isLoading } = useQuery({
     queryKey: ["agent-deliveries"],
-    queryFn: async () => {
-      const res = await fetch("/api/agent/deliveries", { cache: "no-store" });
-      if (!res.ok) throw new Error("Failed to load deliveries");
-      return (await res.json()) as Delivery[];
-    },
+    queryFn: () => agentFetchJson<Delivery[]>("/api/agent/deliveries"),
     refetchInterval: 20000,
   });
 
@@ -39,13 +36,20 @@ export default function AgentRoutePage() {
     queryKey: ["agent-route", pending.map((d) => d.id)],
     queryFn: async () => {
       if (pending.length < 2) return null;
-      const res = await fetch("/api/agent/route/optimize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ delivery_ids: pending.map((d) => d.id) }),
-      });
-      if (!res.ok) return null;
-      return res.json() as Promise<RouteOptimizationResponse>;
+      try {
+        return await agentFetchJson<RouteOptimizationResponse>(
+          "/api/agent/route/optimize",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ delivery_ids: pending.map((d) => d.id) }),
+          }
+        );
+      } catch {
+        // Optimisation is an enhancement. If the routing service is down we
+        // fall back to the unsorted list rather than blocking the screen.
+        return null;
+      }
     },
     enabled: pending.length >= 2,
   });

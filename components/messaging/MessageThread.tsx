@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Message } from "@/types/interface";
+import { agentFetchJson } from "@/lib/agent-client";
 
 type Role = "buyer" | "seller" | "agent" | "admin";
 
@@ -15,11 +16,9 @@ function toRole(sender_type: string): Role {
 }
 
 export default function MessageThread({
-  deliveryId,
   orderId,
   conversationId: explicitConversationId,
 }: {
-  deliveryId?: string;
   orderId?: string;
   conversationId?: string;
 }) {
@@ -28,11 +27,8 @@ export default function MessageThread({
 
   const conversationsQuery = useQuery({
     queryKey: ["conversations"],
-    queryFn: async () => {
-      const res = await fetch("/api/conversations");
-      if (!res.ok) throw new Error();
-      return res.json() as Promise<{ id: string; order_id: string | null }[]>;
-    },
+    queryFn: () =>
+      agentFetchJson<{ id: string; order_id: string | null }[]>("/api/conversations"),
     enabled: !explicitConversationId && Boolean(orderId),
   });
 
@@ -43,32 +39,24 @@ export default function MessageThread({
 
   const messagesQuery = useQuery({
     queryKey: ["messages", conversationId],
-    queryFn: async () => {
-      if (!conversationId) return [];
-      const res = await fetch(`/api/conversations/${conversationId}/messages`);
-      if (!res.ok) throw new Error();
-      return res.json() as Promise<Message[]>;
-    },
+    queryFn: () =>
+      agentFetchJson<Message[]>(`/api/conversations/${conversationId}/messages`),
     enabled: Boolean(conversationId),
     refetchInterval: 5000,
   });
 
   const send = useMutation({
-    mutationFn: async (body: string) => {
-      if (!conversationId) throw new Error("No conversation");
-      const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+    mutationFn: (body: string) =>
+      agentFetchJson(`/api/conversations/${conversationId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body }),
-      });
-      if (!res.ok) throw new Error();
-      return res.json();
-    },
+      }),
     onSuccess: () => {
       setText("");
       messagesQuery.refetch();
     },
-    onError: () => toast.error("Failed to send message"),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   useEffect(() => {

@@ -48,5 +48,5 @@ export async function POST(req: NextRequest) {
     maxAge: 60 * 60 * 12, // 12 hours, matches backend token expiry
   });
 
-  return NextResponse.json({ agent });
+  return NextResponse.json({ ok: true, agent });
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,9 +14,12 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
-export default function AgentLoginPage() {
+function LoginFormView() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const reason = searchParams.get("reason");
+  const next = searchParams.get("next") ?? "/agent/deliveries";
 
   const {
     register,
@@ -43,7 +46,7 @@ export default function AgentLoginPage() {
       }
 
       toast.success(`Welcome back, ${json.agent.name}!`);
-      router.push("/agent/deliveries");
+      router.replace(next.startsWith("/") ? next : "/agent/deliveries");
     } catch {
       toast.error("Something went wrong. Try again.");
     } finally {
@@ -77,6 +80,30 @@ export default function AgentLoginPage() {
           <p className="text-muted text-sm mb-8">
             Enter the credentials provided by your admin.
           </p>
+
+          {reason === "expired" && (
+            <div
+              role="status"
+              className="mb-6 rounded-lg border border-amber bg-amber/10 px-4 py-3 text-sm"
+            >
+              <p className="font-medium">Your session expired after 12 hours.</p>
+              <p className="mt-1 text-muted">
+                Sign in again to carry on — your deliveries are still assigned to you.
+              </p>
+            </div>
+          )}
+
+          {reason === "unavailable" && (
+            <div
+              role="status"
+              className="mb-6 rounded-lg border border-border bg-surface px-4 py-3 text-sm"
+            >
+              <p className="font-medium">Could not reach dispatch.</p>
+              <p className="mt-1 text-muted">
+                Check your connection and try again. Your account is fine.
+              </p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
@@ -119,5 +146,19 @@ export default function AgentLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AgentLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber" />
+        </div>
+      }
+    >
+      <LoginFormView />
+    </Suspense>
   );
 }

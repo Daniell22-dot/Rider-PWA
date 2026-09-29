@@ -1,17 +1,7 @@
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { agentFetch } from "@/lib/agent-server";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
-export async function GET(_: Request, { params }: { params: Promise<{ conversationId: string }> }) {
-  const token = (await cookies()).get("ekshop_agent_token")?.value;
-  if (!token) return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
-
-  const { conversationId } = await params;
-  const res = await fetch(`${BASE_URL}/conversations/${conversationId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-  const data = await res.json().catch(() => ({}));
-  return NextResponse.json(data, { status: res.status });
+export function GET(_: Request, { params }: { params: Promise<{ conversationId: string }> }) {
+  return params.then(({ conversationId }) =>
+    agentFetch(`/conversations/${conversationId}`)
+  );
 }

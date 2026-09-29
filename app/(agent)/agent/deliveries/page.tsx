@@ -6,6 +6,7 @@ import { Package, MapPin, Phone, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Delivery } from "@/types/interface";
 import { formatKES } from "@/lib/utils";
+import { agentFetchJson } from "@/lib/agent-client";
 import ReadOnlyMap from "@/components/geo/ReadOnlyMap";
 
 const DELIVERY_TRANSITIONS: Record<string, string[]> = {
@@ -38,31 +39,22 @@ export default function AgentDeliveriesPage() {
 
   const { data: deliveries = [], isLoading } = useQuery({
     queryKey: ["agent-deliveries"],
-    queryFn: async () => {
-      const res = await fetch("/api/agent/deliveries", { cache: "no-store" });
-      if (!res.ok) throw new Error("Failed to load deliveries");
-      return (await res.json()) as Delivery[];
-    },
+    queryFn: () => agentFetchJson<Delivery[]>("/api/agent/deliveries"),
     refetchInterval: 20000,
   });
 
   async function advance(deliveryId: string, status: string) {
     setUpdatingId(deliveryId);
     try {
-      const res = await fetch(`/api/agent/deliveries/${deliveryId}/status`, {
+      await agentFetchJson(`/api/agent/deliveries/${deliveryId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(data.detail ?? "Failed to update delivery");
-        return;
-      }
       toast.success(`Marked as ${STATUS_LABELS[status] ?? status}`);
       queryClient.invalidateQueries({ queryKey: ["agent-deliveries"] });
-    } catch {
-      toast.error("Something went wrong. Try again.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update delivery");
     } finally {
       setUpdatingId(null);
     }

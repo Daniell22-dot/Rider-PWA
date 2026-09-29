@@ -1,25 +1,9 @@
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { agentFetch } from "@/lib/agent-server";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
-export async function PATCH(
-  req: Request,
-) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ekshop_agent_token")?.value;
-  if (!token) return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
-
-  const body = await req.json();
-  const res = await fetch(`${BASE_URL}/delivery/agents/me/location`, {
+export async function PATCH(req: NextRequest) {
+  return agentFetch("/delivery/agents/me/location", {
     method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
+    body: await req.text(),
   });
-  const data = await res.json().catch(() => ({}));
-  return NextResponse.json(data, { status: res.status });
 }

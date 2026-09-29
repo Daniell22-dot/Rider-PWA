@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Delivery } from "@/types/interface";
+import { agentFetchJson, agentFetchResponse } from "@/lib/agent-client";
 import MessageAdminButton from "@/components/MessageAdminButton";
 
 type AgentStatus = "active" | "busy" | "inactive";
@@ -16,7 +17,8 @@ const STATUS_LABELS: Record<AgentStatus, string> = {
 };
 
 export default function AgentHomePage() {
-  const [status, setStatus] = useState<AgentStatus>("active");
+  const queryClient = useQueryClient();
+  const [selfStatus, setSelfStatus] = useState<AgentStatus>("active");
   const [loading, setLoading] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
   const geolocationUnsupported =
@@ -24,11 +26,7 @@ export default function AgentHomePage() {
 
   const { data: deliveries = [] } = useQuery({
     queryKey: ["agent-deliveries"],
-    queryFn: async () => {
-      const res = await fetch("/api/agent/deliveries", { cache: "no-store" });
-      if (!res.ok) throw new Error("Failed to load deliveries");
-      return (await res.json()) as Delivery[];
-    },
+    queryFn: () => agentFetchJson<Delivery[]>("/api/agent/deliveries"),
     refetchInterval: 20000,
   });
 
@@ -36,10 +34,15 @@ export default function AgentHomePage() {
     if (!navigator.geolocation) return;
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        fetch("/api/agent/location", {
+        // Fire-and-forget: a stale location ping must never interrupt the
+        // rider, but an expired session still has to bounce them to login.
+        agentFetchResponse("/api/agent/location", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          body: JSON.stringify({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          }),
         }).catch(() => {});
       },
       () => setLocationDenied(true),
@@ -48,36 +51,29 @@ export default function AgentHomePage() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
-  useEffect(() => {
-    fetch("/api/agent/deliveries")
-      .then((r) => r.json())
-      .then((data: Delivery[]) => {
-        const active = data.filter((d) => d.status !== "delivered" && d.status !== "cancelled");
-        if (active.length > 0) {
-          setStatus("busy");
-        }
-      })
-      .catch(() => {});
-  }, []);
-
   const active = deliveries.filter((d) => d.status !== "delivered" && d.status !== "cancelled");
   const completed = deliveries.filter((d) => d.status === "delivered");
   const next = active[0];
 
+  // Derived, not synchronised: an open delivery makes the agent busy
+  // regardless of what they last tapped. Mirroring this into state via an
+  // effect caused a second render pass on every 20s poll.
+  const status: AgentStatus = active.length > 0 ? "busy" : selfStatus;
+
   async function toggleStatus() {
     setLoading(true);
     try {
-      const newStatus: AgentStatus = status === "active" ? "inactive" : "active";
-      const res = await fetch("/api/agent/auth/status", {
+      const newStatus: AgentStatus = selfStatus === "active" ? "inactive" : "active";
+      await agentFetchJson("/api/agent/auth/status", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) throw new Error();
-      setStatus(newStatus);
+      setSelfStatus(newStatus);
+      queryClient.invalidateQueries({ queryKey: ["agent-deliveries"] });
       toast.success(newStatus === "active" ? "You're now available" : "You're now offline");
-    } catch {
-      toast.error("Could not update status");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update status");
     } finally {
       setLoading(false);
     }
@@ -137,7 +133,13 @@ export default function AgentHomePage() {
         >
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-amber uppercase tracking-wide">Next stop</span>
-            <span className="text-xs text-muted">Arrive in ~25 min</span>
+            {next.distance_km != null && next.duration_min != null ? (
+              <span className="text-xs text-muted">
+                {next.distance_km} km · {Math.round(next.duration_min)} min
+              </span>
+            ) : (
+              <span className="text-xs text-muted">Open for directions</span>
+            )}
           </div>
           <h2 className="text-lg font-bold mb-1">
             {next.order?.buyer_name ?? "Customer"}

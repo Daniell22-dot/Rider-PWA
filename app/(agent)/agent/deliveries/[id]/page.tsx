@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Delivery } from "@/types/interface";
 import { formatKES } from "@/lib/utils";
+import { agentFetchJson } from "@/lib/agent-client";
 import MessageThread from "@/components/messaging/MessageThread";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -22,78 +24,76 @@ const DELIVERY_TRANSITIONS: Record<string, string[]> = {
   in_transit: ["delivered", "cancelled"],
 };
 
-export default function AgentDeliveryDetailPage({ params }: { params: Promise<{ deliveryId: string }> }) {
+export default function AgentDeliveryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const queryClient = useQueryClient();
   const [showConfirm, setShowConfirm] = useState(false);
   const [showReport, setShowReport] = useState(false);
-  const [recipientName, setRecipientName] = useState("");
-  const [otp, setOtp] = useState("");
   const [notes, setNotes] = useState("");
-  const [photoTaken, setPhotoTaken] = useState(false);
-  const [sigTaken, setSigTaken] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportText, setReportText] = useState("");
 
-  const { data: delivery, isLoading } = useQuery({
-    queryKey: ["agent-delivery"],
-    queryFn: async () => {
-      const { deliveryId } = await params;
-      const res = await fetch(`/api/agent/deliveries/${deliveryId}`);
-      if (!res.ok) throw new Error();
-      return res.json() as Promise<Delivery>;
-    },
+  const { id: deliveryId } = use(params);
+
+  const { data: delivery, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["agent-delivery", deliveryId],
+    queryFn: () => agentFetchJson<Delivery>(`/api/agent/deliveries/${deliveryId}`),
     refetchInterval: 15000,
   });
 
   const updateStatus = useMutation({
-    mutationFn: async (status: string) => {
-      const { deliveryId } = await params;
-      const res = await fetch(`/api/agent/deliveries/${deliveryId}/status`, {
+    mutationFn: (status: string) =>
+      agentFetchJson(`/api/agent/deliveries/${deliveryId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status, notes }),
-      });
-      if (!res.ok) throw new Error();
-      return res.json();
-    },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agent-deliveries"] });
-      queryClient.invalidateQueries({ queryKey: ["agent-delivery"] });
-      toast.success(`Marked as ${STATUS_LABELS[delivery?.status ?? ""] ?? "updated"}`);
+      queryClient.invalidateQueries({ queryKey: ["agent-delivery", deliveryId] });
+      toast.success("Delivery updated");
       setShowConfirm(false);
-      setRecipientName("");
-      setOtp("");
       setNotes("");
-      setPhotoTaken(false);
-      setSigTaken(false);
     },
-    onError: () => toast.error("Failed to update delivery"),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const submitReport = useMutation({
-    mutationFn: async () => {
-      const { deliveryId } = await params;
-      const res = await fetch(`/api/agent/deliveries/${deliveryId}`, {
+    mutationFn: () =>
+      agentFetchJson(`/api/agent/deliveries/${deliveryId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason: reportReason, notes: reportText }),
-      });
-      if (!res.ok) throw new Error();
-      return res.json();
-    },
+      }),
     onSuccess: () => {
       toast.success("Issue sent to dispatch");
       setShowReport(false);
       setReportReason("");
       setReportText("");
     },
-    onError: () => toast.error("Failed to send report"),
+    onError: (e: Error) => toast.error(e.message),
   });
 
-  if (isLoading || !delivery) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber" />
+      </div>
+    );
+  }
+
+  if (isError || !delivery) {
+    return (
+      <div className="card flex flex-col items-center justify-center py-20 text-center">
+        <p className="font-bold mb-1">
+          {error instanceof Error ? error.message : "Could not load this delivery"}
+        </p>
+        <p className="text-sm text-muted mb-4">It may have been reassigned or cancelled.</p>
+        <div className="flex gap-3">
+          <button onClick={() => refetch()} className="btn-accent">Try again</button>
+          <Link href="/agent/deliveries" className="px-4 py-2 rounded-full border border-border text-sm font-medium">
+            Back to deliveries
+          </Link>
+        </div>
       </div>
     );
   }
@@ -195,7 +195,7 @@ export default function AgentDeliveryDetailPage({ params }: { params: Promise<{ 
       {order && (
         <div className="card p-5 mb-6">
           <p className="text-xs text-muted mb-3">Messages</p>
-          <MessageThread deliveryId={delivery.id} orderId={order.id} />
+          <MessageThread orderId={order.id} />
         </div>
       )}
 
@@ -229,58 +229,21 @@ export default function AgentDeliveryDetailPage({ params }: { params: Promise<{ 
           <div className="card w-full max-w-md p-6">
             <h2 className="text-lg font-bold mb-4">Confirm delivery</h2>
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs text-muted mb-1">Recipient name</label>
-                <input
-                  type="text"
-                  value={recipientName}
-                  onChange={(e) => setRecipientName(e.target.value)}
-                  className="input-field"
-                  placeholder="Who received the package?"
-                />
+              <div className="rounded-lg border border-border bg-surface p-3">
+                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">
+                  What is recorded
+                </p>
+                <ul className="text-xs text-muted space-y-0.5 list-disc pl-4">
+                  <li>Delivery time and your current location</li>
+                  <li>Your name, recorded as the completing rider</li>
+                  <li>Anything you add in the notes below</li>
+                </ul>
+                <p className="text-xs text-danger mt-2">
+                  Photo, signature and customer PIN capture is not available yet.
+                </p>
               </div>
               <div>
-                <label className="block text-xs text-muted mb-1">OTP / PIN from customer</label>
-                <input
-                  type="text"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  className="input-field"
-                  placeholder="4-digit code"
-                  inputMode="numeric"
-                  maxLength={4}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPhotoTaken(!photoTaken)}
-                  className={`card p-4 flex flex-col items-center gap-2 cursor-pointer ${
-                    photoTaken ? "border-success text-success" : ""
-                  }`}
-                >
-                  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                    <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
-                    <circle cx="12" cy="13" r="4" />
-                  </svg>
-                  <span className="text-xs font-medium">{photoTaken ? "Photo taken" : "Take photo"}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSigTaken(!sigTaken)}
-                  className={`card p-4 flex flex-col items-center gap-2 cursor-pointer ${
-                    sigTaken ? "border-success text-success" : ""
-                  }`}
-                >
-                  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                    <path d="M3 17s3-1 5-3 3-5 5-5 2 4 4 4 3-2 4-2" />
-                    <path d="M3 21h18" />
-                  </svg>
-                  <span className="text-xs font-medium">{sigTaken ? "Signature captured" : "Capture signature"}</span>
-                </button>
-              </div>
-              <div>
-                <label className="block text-xs text-muted mb-1">Notes (optional)</label>
+                <label className="block text-xs text-muted mb-1">Notes for dispatch (optional)</label>
                 <input
                   type="text"
                   value={notes}

@@ -1,27 +1,9 @@
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { DeliveryAgent } from "@/types/interface";
+import { requireAgent } from "@/lib/require-agent";
 import AgentHeader from "@/components/agent/AgentHeader";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
-async function getAgent(): Promise<DeliveryAgent | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ekshop_agent_token")?.value;
-  if (!token) return null;
-
-  const res = await fetch(`${BASE_URL}/delivery/agents/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-  if (!res.ok) return null;
-  return res.json();
-}
-
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
-  const agent = await getAgent();
-  if (!agent) redirect("/agent/login");
+  const agent = await requireAgent();
 
   return (
     <div className="min-h-screen bg-surface flex flex-col">

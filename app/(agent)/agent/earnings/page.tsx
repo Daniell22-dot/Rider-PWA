@@ -2,19 +2,19 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { formatKES } from "@/lib/utils";
+import { agentFetchJson } from "@/lib/agent-client";
 
 export default function AgentEarningsPage() {
   const { data: earnings, isLoading, isError } = useQuery({
     queryKey: ["agent-earnings"],
-    queryFn: async () => {
-      const res = await fetch("/api/agent/earnings", { cache: "no-store" });
-      if (!res.ok) throw new Error("Failed to load earnings");
-      return (await res.json()) as {
+    queryFn: () =>
+      agentFetchJson<{
         total_deliveries: number;
+        weekly_deliveries: number;
+        monthly_deliveries: number;
         weekly_earnings: string;
         monthly_earnings: string;
-      };
-    },
+      }>("/api/agent/earnings"),
     refetchInterval: 30000,
   });
 
@@ -38,7 +38,7 @@ export default function AgentEarningsPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Earnings</h1>
-      <p className="text-sm text-muted mb-6">Your pay for completed deliveries</p>
+      <p className="text-sm text-muted mb-6">Deliveries completed, and what they were paid at</p>
 
       <div className="space-y-3">
         <div className="card p-5">
@@ -49,13 +49,25 @@ export default function AgentEarningsPage() {
         <div className="card p-5">
           <p className="text-xs text-muted mb-1">This week</p>
           <p className="text-3xl font-bold">{formatKES(earnings.weekly_earnings ?? 0)}</p>
+          <p className="text-xs text-muted mt-1">
+            {earnings.weekly_deliveries ?? 0} completed deliveries
+          </p>
         </div>
 
         <div className="card p-5">
           <p className="text-xs text-muted mb-1">This month</p>
           <p className="text-3xl font-bold">{formatKES(earnings.monthly_earnings ?? 0)}</p>
+          <p className="text-xs text-muted mt-1">
+            {earnings.monthly_deliveries ?? 0} completed deliveries
+          </p>
         </div>
       </div>
+
+      <p className="text-xs text-muted mt-4">
+        Figures are calculated by dispatch at a flat rate per completed delivery.
+        Zone, distance and time-of-day rates are not applied yet. If a figure
+        looks wrong, raise it with dispatch.
+      </p>
     </div>
   );
 }

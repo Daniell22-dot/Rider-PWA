@@ -1,41 +1,21 @@
-import { cookies } from "next/headers";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { agentFetch } from "@/lib/agent-server";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("ekshop_agent_token")?.value;
+export async function GET(
+  _: Request,
+  { params }: { params: Promise<{ conversationId: string }> }
+) {
+  const { conversationId } = await params;
+  return agentFetch(`/conversations/${conversationId}/messages`);
 }
 
-export async function GET(_: Request, { params }: { params: Promise<{ conversationId: string }> }) {
-  const token = await getToken();
-  if (!token) return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
-
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ conversationId: string }> }
+) {
   const { conversationId } = await params;
-  const res = await fetch(`${BASE_URL}/conversations/${conversationId}/messages`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-  const data = await res.json().catch(() => ({}));
-  return NextResponse.json(data, { status: res.status });
-}
-
-export async function POST(req: NextRequest, { params }: { params: Promise<{ conversationId: string }> }) {
-  const token = await getToken();
-  if (!token) return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
-
-  const { conversationId } = await params;
-  const body = await req.json();
-
-  const res = await fetch(`${BASE_URL}/conversations/${conversationId}/messages`, {
+  return agentFetch(`/conversations/${conversationId}/messages`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(body),
+    body: await req.text(),
   });
-  const data = await res.json().catch(() => ({}));
-  return NextResponse.json(data, { status: res.status });
 }
