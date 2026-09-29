@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { Delivery } from "@/types/interface";
 import { agentFetchJson, agentFetchResponse } from "@/lib/agent-client";
 import MessageAdminButton from "@/components/MessageAdminButton";
+import AgentPingsPanel from "@/components/agent/AgentPingsPanel";
+import AgentKYCStatusBanner from "@/components/agent/AgentKYCStatusBanner";
 
 type AgentStatus = "active" | "busy" | "inactive";
 
@@ -124,6 +126,12 @@ export default function AgentHomePage() {
           <p className="text-xs text-muted mt-1">Total</p>
         </div>
       </div>
+
+      {/* Live ping panel for new-order dispatch */}
+      <AgentPingsPanel />
+
+      {/* KYC status – only renders when not fully verified */}
+      <AgentKYCStatusBanner />
 
       {/* Next stop */}
       {next && (

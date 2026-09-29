@@ -3,6 +3,8 @@ export const NAIROBI_CENTER = [-1.286, 36.817] as const;
 export const TILE_URLS = {
   hybrid: "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
   osm: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  esri: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  openTopo: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
 } as const;
 
 export type BasemapKey = keyof typeof TILE_URLS;

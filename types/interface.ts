@@ -206,6 +206,76 @@ export interface DeliveryAgent {
   created_at: string;
 }
 
+// Rider fleet onboarding
+export type VehicleType = "bicycle" | "motorcycle" | "pickup_van";
+export type KYCStatus = "pending_review" | "approved" | "rejected";
+
+export interface KYCDocument {
+  type: string;
+  url: string;
+}
+
+export interface KYCDetail {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  kyc_status: KYCStatus;
+  vehicle_type?: VehicleType | null;
+  national_id_number?: string | null;
+  license_number?: string | null;
+  equipment_verified: boolean;
+  kyc_documents?: KYCDocument[] | null;
+  equipment_photo_url?: string | null;
+  kyc_review_notes?: string | null;
+  kyc_submitted_at?: string | null;
+  kyc_reviewed_at?: string | null;
+  wallet_balance?: string;
+  current_lat?: number | null;
+  current_lng?: number | null;
+  last_location_update?: string | null;
+}
+
+// Ping engine offers
+export type OfferStatus = "queued" | "pending" | "accepted" | "declined" | "expired" | "cancelled";
+
+export interface DeliveryOffer {
+  id: string;
+  delivery_id: string;
+  status: OfferStatus;
+  queue_position: number;
+  expires_at?: string | null;
+  created_at: string;
+  delivery?: Delivery;
+}
+
+export interface OfferList {
+  offers: DeliveryOffer[];
+  stale_expired: number;
+}
+
+// Wallet ledger
+export type LedgerEntryType = "earning" | "b2c_payout" | "reversal" | "adjustment";
+export type LedgerStatus = "pending" | "succeeded" | "failed";
+
+export interface LedgerEntry {
+  id: string;
+  delivery_id?: string | null;
+  entry_type: LedgerEntryType;
+  amount: string;
+  balance_after: string;
+  reference?: string | null;
+  status: LedgerStatus;
+  failure_reason?: string | null;
+  created_at: string;
+}
+
+export interface LedgerList {
+  agent_id: string;
+  wallet_balance: string;
+  entries: LedgerEntry[];
+}
+
 export interface RouteStop {
   delivery_id: string;
   tracking_number: string;
